@@ -1,0 +1,92 @@
+# ═══════════════════════════════════════════════════
+#  SKYY – Docker Compose (Production Stack)
+# ═══════════════════════════════════════════════════
+
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: skyy-web
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://skyy:skyy_password@db:5432/skyy_todo
+      - RATE_LIMIT_STORAGE=redis://redis:6379/0
+      - SESSION_COOKIE_SECURE=True
+      - REMEMBER_COOKIE_SECURE=True
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - logs:/app/logs
+      - ./migrations:/app/migrations
+    networks:
+      - skyy-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  db:
+    image: postgres:16-alpine
+    container_name: skyy-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=skyy
+      - POSTGRES_PASSWORD=skyy_password
+      - POSTGRES_DB=skyy_todo
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - skyy-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U skyy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: skyy-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass skyy_redis_pass
+    volumes:
+      - redis_data:/data
+    networks:
+      - skyy-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nginx:
+    image: nginx:alpine
+    container_name: skyy-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - web
+    networks:
+      - skyy-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  logs:
+
+networks:
+  skyy-network:
+    driver: bridge

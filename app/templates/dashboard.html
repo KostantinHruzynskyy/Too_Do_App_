@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% block title %}Skyy · dashboard{% endblock %}
+{% block content %}
+<div class="dashboard">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <i class="fas fa-cloud-moon"></i>
+                <span>Skyy</span>
+            </div>
+        </div>
+
+        <div class="user-info">
+            <div class="avatar">{{ current_user.username[0]|upper }}</div>
+            <div class="user-details">
+                <span class="username">{{ current_user.username }}</span>
+                <span class="email">{{ current_user.email }}</span>
+            </div>
+        </div>
+
+        <div class="stats-cards">
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.total }}</div>
+                <div class="stat-label">Total</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" style="color: #10b981;">{{ stats.completed }}</div>
+                <div class="stat-label">Done</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" style="color: #f59e0b;">{{ stats.active }}</div>
+                <div class="stat-label">Active</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" style="color: #ef4444;">{{ stats.high_priority }}</div>
+                <div class="stat-label">Urgent</div>
+            </div>
+        </div>
+
+        <div class="sidebar-nav">
+            <h4>Filters</h4>
+            <a href="{{ url_for('main.dashboard', filter='all', sort=current_sort) }}" class="filter-link {% if current_filter == 'all' %}active{% endif %}">
+                <i class="fas fa-list"></i> All Tasks
+            </a>
+            <a href="{{ url_for('main.dashboard', filter='active', sort=current_sort) }}" class="filter-link {% if current_filter == 'active' %}active{% endif %}">
+                <i class="fas fa-circle" style="color: #f59e0b;"></i> Active
+            </a>
+            <a href="{{ url_for('main.dashboard', filter='completed', sort=current_sort) }}" class="filter-link {% if current_filter == 'completed' %}active{% endif %}">
+                <i class="fas fa-check-circle" style="color: #10b981;"></i> Completed
+            </a>
+            <a href="{{ url_for('main.dashboard', filter='high', sort=current_sort) }}" class="filter-link {% if current_filter == 'high' %}active{% endif %}">
+                <i class="fas fa-exclamation-circle" style="color: #ef4444;"></i> High Priority
+            </a>
+            <a href="{{ url_for('main.dashboard', filter='medium', sort=current_sort) }}" class="filter-link {% if current_filter == 'medium' %}active{% endif %}">
+                <i class="fas fa-minus-circle" style="color: #f59e0b;"></i> Medium
+            </a>
+            <a href="{{ url_for('main.dashboard', filter='low', sort=current_sort) }}" class="filter-link {% if current_filter == 'low' %}active{% endif %}">
+                <i class="fas fa-arrow-circle-down" style="color: #6b7280;"></i> Low
+            </a>
+        </div>
+
+        <div class="sidebar-footer">
+            <a href="https://github.com/KostantinHruzynskyy" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-full" style="margin-bottom: 8px;">
+                <i class="fab fa-github"></i> GitHub
+            </a>
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-outline btn-full">
+                <i class="fas fa-sign-out-alt"></i> Sign Out
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="dashboard-header">
+            <div>
+                <h1>My Tasks</h1>
+                <p class="header-subtitle">
+                    {% if current_filter == 'all' %}All tasks
+                    {% elif current_filter == 'active' %}Active tasks
+                    {% elif current_filter == 'completed' %}Completed tasks
+                    {% elif current_filter == 'high' %}High priority tasks
+                    {% elif current_filter == 'medium' %}Medium priority tasks
+                    {% elif current_filter == 'low' %}Low priority tasks
+                    {% endif %}
+                    — {{ todos|length }} total
+                </p>
+            </div>
+            <div class="header-actions">
+                <div class="sort-group">
+                    <label for="sort-select">Sort:</label>
+                    <select id="sort-select" onchange="window.location.href=this.value">
+                        <option value="created" {% if current_sort == 'created' %}selected{% endif %}>Newest</option>
+                        <option value="priority" {% if current_sort == 'priority' %}selected{% endif %}>Priority</option>
+                        <option value="due" {% if current_sort == 'due' %}selected{% endif %}>Due Date</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="openAddModal()">
+                    <i class="fas fa-plus"></i> New Task
+                </button>
+            </div>
+        </header>
+
+        <!-- Todo List -->
+        <div class="todo-list" id="todo-list">
+            {% if todos %}
+                {% for todo in todos %}
+                <div class="todo-item {% if todo.completed %}completed{% endif %}" data-id="{{ todo.id }}">
+                    <button class="todo-check" onclick="toggleTodo({{ todo.id }})">
+                        {% if todo.completed %}
+                            <i class="fas fa-check-circle"></i>
+                        {% else %}
+                            <i class="far fa-circle"></i>
+                        {% endif %}
+                    </button>
+                    <div class="todo-content" onclick="openEditModal({{ todo.id }}, '{{ todo.title|e }}', '{{ todo.description|e }}', '{{ todo.priority }}', '{{ todo.due_date.strftime('%Y-%m-%d') if todo.due_date else '' }}')">
+                        <div class="todo-title">{{ todo.title }}</div>
+                        {% if todo.description %}
+                        <div class="todo-desc">{{ todo.description[:80] }}{% if todo.description|length > 80 %}...{% endif %}</div>
+                        {% endif %}
+                    </div>
+                    <div class="todo-meta">
+                        {% if todo.due_date %}
+                        <span class="todo-due {% if todo.due_date.date() < now().date() and not todo.completed %}overdue{% endif %}">
+                            <i class="far fa-calendar"></i> {{ todo.due_date.strftime('%b %d') }}
+                        </span>
+                        {% endif %}
+                        <span class="priority-badge priority-{{ todo.priority }}">{{ todo.priority }}</span>
+                        <button class="todo-delete" onclick="deleteTodo({{ todo.id }})" title="Delete">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-cloud-moon"></i>
+                <h3>No tasks yet</h3>
+                <p>Create your first task to get started!</p>
+                <button class="btn btn-primary" onclick="openAddModal()">
+                    <i class="fas fa-plus"></i> Create Task
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="todo-modal" style="display: none;">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="modal-title">New Task</h2>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <form id="todo-form" onsubmit="saveTodo(event)">
+            <input type="hidden" id="todo-id" value="">
+            <div class="form-group">
+                <label for="todo-title">Title</label>
+                <input type="text" id="todo-title" placeholder="What needs to be done?" required>
+            </div>
+            <div class="form-group">
+                <label for="todo-desc">Description <span class="optional">(optional)</span></label>
+                <textarea id="todo-desc" rows="3" placeholder="Add some details..."></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="todo-priority">Priority</label>
+                    <select id="todo-priority">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="todo-due">Due Date <span class="optional">(optional)</span></label>
+                    <input type="date" id="todo-due">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="modal-submit">Create Task</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Pass Flask url_for to JS
+    window.URLS = {
+        toggle: "{{ url_for('main.toggle_todo', todo_id=0) }}",
+        delete: "{{ url_for('main.delete_todo', todo_id=0) }}",
+        add: "{{ url_for('main.add_todo') }}",
+        update: "{{ url_for('main.update_todo', todo_id=0) }}"
+    };
+</script>
+{% endblock %}

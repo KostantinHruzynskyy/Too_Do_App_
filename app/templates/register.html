@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Skyy · create account{% endblock %}
+{% block content %}
+<div class="auth-page">
+    <div class="auth-container">
+        <a href="{{ url_for('main.index') }}" class="auth-logo">
+            <i class="fas fa-cloud-moon"></i>
+            <span>Skyy</span>
+        </a>
+        <h1>Create your account</h1>
+        <p class="auth-subtitle">Start organizing your tasks today</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" class="auth-form">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" placeholder="yourname" required autofocus>
+            </div>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" placeholder="you@example.com" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="••••••••" required minlength="6">
+            </div>
+            <div class="form-group">
+                <label for="confirm_password">Confirm Password</label>
+                <input type="password" id="confirm_password" name="confirm_password" placeholder="••••••••" required minlength="6">
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">Create Account</button>
+        </form>
+
+        <p class="auth-footer">
+            Already have an account? <a href="{{ url_for('auth.login') }}">Sign in</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

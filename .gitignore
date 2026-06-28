@@ -1,0 +1,53 @@
+# ═══════════════════════════════════════════════════
+#  SKYY – Git Ignore
+# ═══════════════════════════════════════════════════
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual Environment
+venv/
+.env
+
+# Database
+*.db
+*.sqlite
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/*.log
+
+# Uploads (if any)
+uploads/
+
+# Coverage
+htmlcov/
+.coverage
+coverage.xml
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Flask
+instance/
+
+# Distribution
+*.tar.gz
+*.zip
