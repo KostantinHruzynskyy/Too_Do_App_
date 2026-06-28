@@ -42,6 +42,32 @@ def inject_now():
 
 
 # ═══════════════════════════════════════════════════════════════
+#  HUB / LANDING ROUTES
+# ═══════════════════════════════════════════════════════════════
+
+@main.route('/')
+def hub():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.dashboard'))
+    return render_template('hub.html')
+
+
+@main.route('/hub')
+def hub_page():
+    return render_template('hub.html')
+
+
+@main.route('/features')
+def features():
+    return render_template('hub.html')
+
+
+@main.route('/about')
+def about():
+    return render_template('hub.html')
+
+
+# ═══════════════════════════════════════════════════════════════
 #  AUTH ROUTES
 # ═══════════════════════════════════════════════════════════════
 
@@ -106,7 +132,7 @@ def register():
         if not valid_email:
             flash(email_result, 'danger')
             return render_template('register.html')
-        email = email_result  # Use normalized email
+        email = email_result
 
         # Validate password match
         if password != confirm_password:
@@ -153,13 +179,6 @@ def logout():
 # ═══════════════════════════════════════════════════════════════
 #  MAIN ROUTES
 # ═══════════════════════════════════════════════════════════════
-
-@main.route('/')
-def index():
-    if current_user.is_authenticated:
-        return redirect(url_for('main.dashboard'))
-    return render_template('index.html')
-
 
 @main.route('/dashboard')
 @login_required
@@ -235,7 +254,6 @@ def add_todo():
     if not data:
         return jsonify({'error': 'Invalid JSON payload.'}), 400
 
-    # Sanitize and validate input
     allowed_fields = {'title', 'description', 'priority', 'due_date'}
     sanitized = sanitize_json_input(data, allowed_fields)
 
@@ -245,28 +263,23 @@ def add_todo():
     if len(title) > MAX_TITLE_LENGTH:
         return jsonify({'error': f'Title must not exceed {MAX_TITLE_LENGTH} characters.'}), 400
 
-    # Sanitize title (plain text – no HTML allowed)
     title = sanitize_plain_text(title)
 
     description = sanitized.get('description', '')
     if description:
         if len(description) > MAX_DESCRIPTION_LENGTH:
             return jsonify({'error': f'Description must not exceed {MAX_DESCRIPTION_LENGTH} characters.'}), 400
-        # Allow basic HTML in description but sanitize
         description = sanitize_html(description)
 
-    # Validate priority (allowlist)
     priority = sanitized.get('priority', 'medium')
     valid_priorities = {'low', 'medium', 'high'}
     if priority not in valid_priorities:
         priority = 'medium'
 
-    # Validate and parse due_date
     due_date = None
     if sanitized.get('due_date'):
         try:
             due_date = datetime.fromisoformat(sanitized['due_date'])
-            # Reject past dates (allow same day)
             if due_date.date() < date.today():
                 return jsonify({'error': 'Due date cannot be in the past.'}), 400
         except (ValueError, TypeError):

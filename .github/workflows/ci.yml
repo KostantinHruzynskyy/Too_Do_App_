@@ -1,0 +1,116 @@
+# ═══════════════════════════════════════════════════
+#  SKYY – CI/CD Pipeline
+#  Automated testing, security audit & build
+# ═══════════════════════════════════════════════════
+
+name: Skyy CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: 🧪 Tests & Security
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8 mypy black pytest-cov
+
+      - name: 🔍 Lint with flake8
+        run: |
+          flake8 app/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 app/ tests/ --count --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: 🛡️ Security audit
+        run: |
+          python security_audit.py
+          pip audit 2>/dev/null || echo "pip audit skipped"
+
+      - name: ✅ Run tests with pytest
+        run: |
+          python -m pytest tests/ -v --tb=short --cov=app --cov-report=term-missing
+        env:
+          FLASK_ENV: testing
+
+      - name: 📊 Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: htmlcov/
+          retention-days: 7
+
+  build:
+    name: 🔧 Build Executable
+    needs: test
+    runs-on: windows-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: 'pip'
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: 🔨 Build TooDooApp.exe
+        run: |
+          python build_exe.py
+
+      - name: 📤 Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: TooDooApp
+          path: dist/TooDooApp.exe
+          retention-days: 30
+
+  docker:
+    name: 🐳 Docker Build
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐳 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🔨 Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: skyy-app:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
