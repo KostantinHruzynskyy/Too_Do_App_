@@ -9,7 +9,7 @@ Usage:
     python build_exe.py
     
 Output:
-    dist/SkyyDesktop.exe
+    dist/TooDooApp.exe
 """
 
 import os
@@ -27,7 +27,7 @@ def build_executable():
     # PyInstaller command
     cmd = [
         sys.executable, "-m", "PyInstaller",
-        "--name=SkyyDesktop",
+        "--name=TooDooApp",
         "--onefile",
         "--windowed",
         "--add-data=app/static;app/static",
@@ -55,10 +55,10 @@ def build_executable():
         print("\n" + "=" * 60)
         print("  BUILD SUCCESSFUL!")
         print("=" * 60)
-        print(f"\nExecutable location: dist/SkyyDesktop.exe")
+        print(f"\nExecutable location: dist/TooDooApp.exe")
         print("\nTo run the application:")
         print("  1. Start the web server: python run.py")
-        print("  2. Run the desktop app: dist/SkyyDesktop.exe")
+        print("  2. Run the desktop app: dist/TooDooApp.exe")
         print("\nNote: The desktop app connects to http://127.0.0.1:5000")
         print("      Make sure the web server is running first.")
     else:
@@ -117,7 +117,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='SkyyDesktop',
+    name='TooDooApp',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -134,10 +134,10 @@ exe = EXE(
 )
 '''
     
-    with open("SkyyDesktop.spec", "w") as f:
+    with open("TooDooApp.spec", "w") as f:
         f.write(spec_content)
     
-    print("Created SkyyDesktop.spec file")
+    print("Created TooDooApp.spec file")
 
 
 if __name__ == "__main__":
@@ -145,6 +145,6 @@ if __name__ == "__main__":
     if "--spec" in sys.argv:
         create_spec_file()
         print("\nSpec file created. Build with:")
-        print("  pyinstaller SkyyDesktop.spec")
+        print("  pyinstaller TooDooApp.spec")
     else:
         build_executable()

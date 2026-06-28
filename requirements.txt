@@ -8,6 +8,7 @@ email-validator==2.1.0
 python-dotenv==1.0.0
 Werkzeug==3.0.1
 Flask-Migrate==4.0.5
+gunicorn==21.2.0
 PyQt5==5.15.11
 PyInstaller==6.21.0
 pytest==9.1.1

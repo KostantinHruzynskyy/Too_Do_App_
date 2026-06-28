@@ -467,11 +467,11 @@ class TodoItemWidget(QWidget):
         """)
         layout.addWidget(priority_label)
         
-        # Due date
+# Due date
         due_date = todo.get('due_date')
         if due_date:
             try:
-                dt = datetime.fromiso_date(due_date)
+                dt = datetime.fromisoformat(due_date)
                 due_label = QLabel(dt.strftime('%b %d'))
                 due_label.setStyleSheet("color: #9ca3af; font-size: 11px;")
                 layout.addWidget(due_label)
