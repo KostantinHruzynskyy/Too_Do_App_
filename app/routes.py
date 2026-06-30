@@ -257,6 +257,115 @@ def dashboard():
 
 
 # ═══════════════════════════════════════════════════════════════
+#  HELPER FUNCTIONS
+# ═══════════════════════════════════════════════════════════════
+
+def _validate_title(title):
+    """Validate and sanitize todo title."""
+    if not title:
+        return None, jsonify({'error': 'Title is required.'}), 400
+    if len(title) > MAX_TITLE_LENGTH:
+        return None, jsonify({
+            'error': f'Title must not exceed {MAX_TITLE_LENGTH} characters.',
+        }), 400
+    return sanitize_plain_text(title), None, None
+
+
+def _validate_description(description):
+    """Validate and sanitize todo description."""
+    if not description:
+        return description, None, None
+    if len(description) > MAX_DESCRIPTION_LENGTH:
+        return None, jsonify({
+            'error': f'Description must not exceed '
+                     f'{MAX_DESCRIPTION_LENGTH} characters.',
+        }), 400
+    return sanitize_html(description), None, None
+
+
+def _validate_priority(priority):
+    """Validate and return priority."""
+    valid_priorities = {'low', 'medium', 'high'}
+    if priority not in valid_priorities:
+        return 'medium'
+    return priority
+
+
+def _validate_due_date(due_date_str):
+    """Validate and parse due date string."""
+    if not due_date_str:
+        return None, None, None
+    try:
+        due_date = datetime.fromisoformat(due_date_str)
+        if due_date.date() < date.today():
+            return None, jsonify({
+                'error': 'Due date cannot be in the past.',
+            }), 400
+        return due_date, None, None
+    except (ValueError, TypeError):
+        return None, jsonify({
+            'error': 'Invalid date format. Use YYYY-MM-DD.',
+        }), 400
+
+
+def _validate_update_title(todo, title):
+    """Validate and update todo title."""
+    if not title:
+        return jsonify({'error': 'Title cannot be empty.'}), 400
+    if len(title) > MAX_TITLE_LENGTH:
+        return jsonify({
+            'error': f'Title must not exceed {MAX_TITLE_LENGTH} characters.',
+        }), 400
+    todo.title = sanitize_plain_text(title)
+    return None, None
+
+
+def _validate_update_description(todo, description):
+    """Validate and update todo description."""
+    if len(description) > MAX_DESCRIPTION_LENGTH:
+        return jsonify({
+            'error': f'Description must not exceed '
+                     f'{MAX_DESCRIPTION_LENGTH} characters.',
+        }), 400
+    todo.description = sanitize_html(description) if description else ''
+    return None, None
+
+
+def _validate_update_completed(todo, completed):
+    """Validate and update todo completed status."""
+    if isinstance(completed, bool):
+        todo.completed = completed
+        return None, None
+    return jsonify({'error': 'Completed must be a boolean.'}), 400
+
+
+def _validate_update_priority(todo, priority):
+    """Validate and update todo priority."""
+    valid_priorities = {'low', 'medium', 'high'}
+    if priority in valid_priorities:
+        todo.priority = priority
+        return None, None
+    return jsonify({
+        'error': 'Invalid priority. Use low, medium, or high.',
+    }), 400
+
+
+def _validate_update_due_date(todo, due_date_str):
+    """Validate and update todo due date."""
+    if due_date_str:
+        try:
+            due = datetime.fromisoformat(due_date_str)
+            todo.due_date = due
+        except (ValueError, TypeError):
+            return jsonify({
+                'error': 'Invalid date format. Use YYYY-MM-DD.',
+            }), 400
+    else:
+        todo.due_date = None
+    return None, None
+
+
+# ═══════════════════════════════════════════════════════════════
 #  API ROUTES (with CSRF, rate limiting, input sanitization)
 # ═══════════════════════════════════════════════════════════════
 
@@ -273,42 +382,21 @@ def add_todo():
     allowed_fields = {'title', 'description', 'priority', 'due_date'}
     sanitized = sanitize_json_input(data, allowed_fields)
 
-    title = sanitized.get('title', '').strip()
-    if not title:
-        return jsonify({'error': 'Title is required.'}), 400
-    if len(title) > MAX_TITLE_LENGTH:
-        return jsonify({
-            'error': f'Title must not exceed {MAX_TITLE_LENGTH} characters.',
-        }), 400
+    title, error, code = _validate_title(sanitized.get('title', '').strip())
+    if error:
+        return error, code
 
-    title = sanitize_plain_text(title)
+    description, error, code = _validate_description(
+        sanitized.get('description', '')
+    )
+    if error:
+        return error, code
 
-    description = sanitized.get('description', '')
-    if description:
-        if len(description) > MAX_DESCRIPTION_LENGTH:
-            return jsonify({
-                'error': f'Description must not exceed '
-                         f'{MAX_DESCRIPTION_LENGTH} characters.',
-            }), 400
-        description = sanitize_html(description)
+    priority = _validate_priority(sanitized.get('priority', 'medium'))
 
-    priority = sanitized.get('priority', 'medium')
-    valid_priorities = {'low', 'medium', 'high'}
-    if priority not in valid_priorities:
-        priority = 'medium'
-
-    due_date = None
-    if sanitized.get('due_date'):
-        try:
-            due_date = datetime.fromisoformat(sanitized['due_date'])
-            if due_date.date() < date.today():
-                return jsonify({
-                    'error': 'Due date cannot be in the past.',
-                }), 400
-        except (ValueError, TypeError):
-            return jsonify({
-                'error': 'Invalid date format. Use YYYY-MM-DD.',
-            }), 400
+    due_date, error, code = _validate_due_date(sanitized.get('due_date'))
+    if error:
+        return error, code
 
     todo = Todo(
         title=title,
@@ -350,53 +438,39 @@ def update_todo(todo_id):
     sanitized = sanitize_json_input(data, allowed_fields)
 
     if 'title' in sanitized:
-        title = sanitized['title'].strip()
-        if not title:
-            return jsonify({'error': 'Title cannot be empty.'}), 400
-        if len(title) > MAX_TITLE_LENGTH:
-            return jsonify({
-                'error': f'Title must not exceed '
-                         f'{MAX_TITLE_LENGTH} characters.',
-            }), 400
-        todo.title = sanitize_plain_text(title)
+        error, code = _validate_update_title(
+            todo, sanitized['title'].strip()
+        )
+        if error:
+            return error, code
 
     if 'description' in sanitized:
-        desc = sanitized['description']
-        if len(desc) > MAX_DESCRIPTION_LENGTH:
-            return jsonify({
-                'error': f'Description must not exceed '
-                         f'{MAX_DESCRIPTION_LENGTH} characters.',
-            }), 400
-        todo.description = sanitize_html(desc) if desc else ''
+        error, code = _validate_update_description(
+            todo, sanitized['description']
+        )
+        if error:
+            return error, code
 
     if 'completed' in sanitized:
-        if isinstance(sanitized['completed'], bool):
-            todo.completed = sanitized['completed']
-        else:
-            return jsonify({
-                'error': 'Completed must be a boolean.',
-            }), 400
+        error, code = _validate_update_completed(
+            todo, sanitized['completed']
+        )
+        if error:
+            return error, code
 
     if 'priority' in sanitized:
-        valid_priorities = {'low', 'medium', 'high'}
-        if sanitized['priority'] in valid_priorities:
-            todo.priority = sanitized['priority']
-        else:
-            return jsonify({
-                'error': 'Invalid priority. Use low, medium, or high.',
-            }), 400
+        error, code = _validate_update_priority(
+            todo, sanitized['priority']
+        )
+        if error:
+            return error, code
 
     if 'due_date' in sanitized:
-        if sanitized['due_date']:
-            try:
-                due = datetime.fromisoformat(sanitized['due_date'])
-                todo.due_date = due
-            except (ValueError, TypeError):
-                return jsonify({
-                    'error': 'Invalid date format. Use YYYY-MM-DD.',
-                }), 400
-        else:
-            todo.due_date = None
+        error, code = _validate_update_due_date(
+            todo, sanitized['due_date']
+        )
+        if error:
+            return error, code
 
     db.session.commit()
     return jsonify({'message': 'Todo updated successfully.'}), 200
