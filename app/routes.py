@@ -308,60 +308,52 @@ def _validate_due_date(due_date_str):
         }), 400
 
 
-def _validate_update_title(todo, title):
-    """Validate and update todo title."""
-    if not title:
-        return jsonify({'error': 'Title cannot be empty.'}), 400
-    if len(title) > MAX_TITLE_LENGTH:
-        return jsonify({
-            'error': f'Title must not exceed {MAX_TITLE_LENGTH} characters.',
-        }), 400
-    todo.title = sanitize_plain_text(title)
-    return None, None
-
-
-def _validate_update_description(todo, description):
-    """Validate and update todo description."""
-    if len(description) > MAX_DESCRIPTION_LENGTH:
-        return jsonify({
-            'error': f'Description must not exceed '
-                     f'{MAX_DESCRIPTION_LENGTH} characters.',
-        }), 400
-    todo.description = sanitize_html(description) if description else ''
-    return None, None
-
-
-def _validate_update_completed(todo, completed):
-    """Validate and update todo completed status."""
-    if isinstance(completed, bool):
-        todo.completed = completed
-        return None, None
-    return jsonify({'error': 'Completed must be a boolean.'}), 400
-
-
-def _validate_update_priority(todo, priority):
-    """Validate and update todo priority."""
-    valid_priorities = {'low', 'medium', 'high'}
-    if priority in valid_priorities:
-        todo.priority = priority
-        return None, None
-    return jsonify({
-        'error': 'Invalid priority. Use low, medium, or high.',
-    }), 400
-
-
-def _validate_update_due_date(todo, due_date_str):
-    """Validate and update todo due date."""
-    if due_date_str:
-        try:
-            due = datetime.fromisoformat(due_date_str)
-            todo.due_date = due
-        except (ValueError, TypeError):
+def _apply_field_update(todo, field, value):
+    """Apply a single field update to todo with validation."""
+    if field == 'title':
+        title = value.strip()
+        if not title:
+            return jsonify({'error': 'Title cannot be empty.'}), 400
+        if len(title) > MAX_TITLE_LENGTH:
             return jsonify({
-                'error': 'Invalid date format. Use YYYY-MM-DD.',
+                'error': f'Title must not exceed {MAX_TITLE_LENGTH} characters.',
             }), 400
-    else:
-        todo.due_date = None
+        todo.title = sanitize_plain_text(title)
+
+    elif field == 'description':
+        if len(value) > MAX_DESCRIPTION_LENGTH:
+            return jsonify({
+                'error': f'Description must not exceed '
+                         f'{MAX_DESCRIPTION_LENGTH} characters.',
+            }), 400
+        todo.description = sanitize_html(value) if value else ''
+
+    elif field == 'completed':
+        if isinstance(value, bool):
+            todo.completed = value
+        else:
+            return jsonify({'error': 'Completed must be a boolean.'}), 400
+
+    elif field == 'priority':
+        valid_priorities = {'low', 'medium', 'high'}
+        if value in valid_priorities:
+            todo.priority = value
+        else:
+            return jsonify({
+                'error': 'Invalid priority. Use low, medium, or high.',
+            }), 400
+
+    elif field == 'due_date':
+        if value:
+            try:
+                todo.due_date = datetime.fromisoformat(value)
+            except (ValueError, TypeError):
+                return jsonify({
+                    'error': 'Invalid date format. Use YYYY-MM-DD.',
+                }), 400
+        else:
+            todo.due_date = None
+
     return None, None
 
 
@@ -419,7 +411,7 @@ def add_todo():
     }), 201
 
 
-@main.route('/api/todos/<int:todo_id>', methods=['PUT'])
+@main.route('/api/todos/<int:todo_id>',methods=['PUT'])
 @login_required
 @limiter.limit(RATE_LIMIT_API)
 @validate_content_type
@@ -437,40 +429,11 @@ def update_todo(todo_id):
     }
     sanitized = sanitize_json_input(data, allowed_fields)
 
-    if 'title' in sanitized:
-        error, code = _validate_update_title(
-            todo, sanitized['title'].strip()
-        )
-        if error:
-            return error, code
-
-    if 'description' in sanitized:
-        error, code = _validate_update_description(
-            todo, sanitized['description']
-        )
-        if error:
-            return error, code
-
-    if 'completed' in sanitized:
-        error, code = _validate_update_completed(
-            todo, sanitized['completed']
-        )
-        if error:
-            return error, code
-
-    if 'priority' in sanitized:
-        error, code = _validate_update_priority(
-            todo, sanitized['priority']
-        )
-        if error:
-            return error, code
-
-    if 'due_date' in sanitized:
-        error, code = _validate_update_due_date(
-            todo, sanitized['due_date']
-        )
-        if error:
-            return error, code
+    for field in allowed_fields:
+        if field in sanitized:
+            error, code = _apply_field_update(todo, field, sanitized[field])
+            if error:
+                return error, code
 
     db.session.commit()
     return jsonify({'message': 'Todo updated successfully.'}), 200
