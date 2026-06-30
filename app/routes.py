@@ -308,52 +308,77 @@ def _validate_due_date(due_date_str):
         }), 400
 
 
+def _update_title(todo, value):
+    """Validate and update todo title."""
+    title = value.strip()
+    if not title:
+        return jsonify({'error': 'Title cannot be empty.'}), 400
+    if len(title) > MAX_TITLE_LENGTH:
+        return jsonify({
+            'error': f'Title must not exceed {MAX_TITLE_LENGTH} characters.',
+        }), 400
+    todo.title = sanitize_plain_text(title)
+    return None, None
+
+
+def _update_description(todo, value):
+    """Validate and update todo description."""
+    if len(value) > MAX_DESCRIPTION_LENGTH:
+        return jsonify({
+            'error': f'Description must not exceed '
+                     f'{MAX_DESCRIPTION_LENGTH} characters.',
+        }), 400
+    todo.description = sanitize_html(value) if value else ''
+    return None, None
+
+
+def _update_completed(todo, value):
+    """Validate and update todo completed status."""
+    if isinstance(value, bool):
+        todo.completed = value
+        return None, None
+    return jsonify({'error': 'Completed must be a boolean.'}), 400
+
+
+def _update_priority(todo, value):
+    """Validate and update todo priority."""
+    valid_priorities = {'low', 'medium', 'high'}
+    if value in valid_priorities:
+        todo.priority = value
+        return None, None
+    return jsonify({
+        'error': 'Invalid priority. Use low, medium, or high.',
+    }), 400
+
+
+def _update_due_date(todo, value):
+    """Validate and update todo due date."""
+    if value:
+        try:
+            todo.due_date = datetime.fromisoformat(value)
+        except (ValueError, TypeError):
+            return jsonify({
+                'error': 'Invalid date format. Use YYYY-MM-DD.',
+            }), 400
+    else:
+        todo.due_date = None
+    return None, None
+
+
+_UPDATE_HANDLERS = {
+    'title': _update_title,
+    'description': _update_description,
+    'completed': _update_completed,
+    'priority': _update_priority,
+    'due_date': _update_due_date,
+}
+
+
 def _apply_field_update(todo, field, value):
-    """Apply a single field update to todo with validation."""
-    if field == 'title':
-        title = value.strip()
-        if not title:
-            return jsonify({'error': 'Title cannot be empty.'}), 400
-        if len(title) > MAX_TITLE_LENGTH:
-            return jsonify({
-                'error': f'Title must not exceed {MAX_TITLE_LENGTH} characters.',
-            }), 400
-        todo.title = sanitize_plain_text(title)
-
-    elif field == 'description':
-        if len(value) > MAX_DESCRIPTION_LENGTH:
-            return jsonify({
-                'error': f'Description must not exceed '
-                         f'{MAX_DESCRIPTION_LENGTH} characters.',
-            }), 400
-        todo.description = sanitize_html(value) if value else ''
-
-    elif field == 'completed':
-        if isinstance(value, bool):
-            todo.completed = value
-        else:
-            return jsonify({'error': 'Completed must be a boolean.'}), 400
-
-    elif field == 'priority':
-        valid_priorities = {'low', 'medium', 'high'}
-        if value in valid_priorities:
-            todo.priority = value
-        else:
-            return jsonify({
-                'error': 'Invalid priority. Use low, medium, or high.',
-            }), 400
-
-    elif field == 'due_date':
-        if value:
-            try:
-                todo.due_date = datetime.fromisoformat(value)
-            except (ValueError, TypeError):
-                return jsonify({
-                    'error': 'Invalid date format. Use YYYY-MM-DD.',
-                }), 400
-        else:
-            todo.due_date = None
-
+    """Dispatch field update to appropriate handler."""
+    handler = _UPDATE_HANDLERS.get(field)
+    if handler:
+        return handler(todo, value)
     return None, None
 
 
@@ -411,7 +436,7 @@ def add_todo():
     }), 201
 
 
-@main.route('/api/todos/<int:todo_id>',methods=['PUT'])
+@main.route('/api/todos/<int:todo_id>', methods=['PUT'])
 @login_required
 @limiter.limit(RATE_LIMIT_API)
 @validate_content_type
