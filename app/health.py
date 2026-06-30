@@ -6,7 +6,6 @@
 """
 
 from flask import Blueprint, jsonify
-from flask_login import current_user
 from app import db
 from app.models import User, Todo
 from datetime import datetime, timezone

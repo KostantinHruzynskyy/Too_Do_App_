@@ -13,11 +13,19 @@ build/
 
 # Virtual Environment
 venv/
+.venv/
+env/
+
+# Environment Variables
 .env
+.env.local
+.env.production
+.env.development
 
 # Database
 *.db
 *.sqlite
+*.sqlite3
 
 # IDE
 .vscode/
@@ -25,21 +33,28 @@ venv/
 *.swp
 *.swo
 *~
+*.orig
 
 # OS
 .DS_Store
 Thumbs.db
+Desktop.ini
 
 # Logs
-logs/*.log
+logs/
+*.log
 
 # Uploads (if any)
 uploads/
+media/
 
 # Coverage
 htmlcov/
 .coverage
+.coverage.*
 coverage.xml
+.pytest_cache/
+.cache/
 
 # Docker
 .docker/
@@ -47,7 +62,31 @@ docker-compose.override.yml
 
 # Flask
 instance/
+.wsgi
 
 # Distribution
 *.tar.gz
 *.zip
+
+# PyInstaller / Build
+*.spec
+*.manifest
+*.exe
+
+# Security / Audit
+security_reports/
+
+# Testing
+.tox/
+*.pytest_cache
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# PyCharm
+*.iml
+
+# Reports
+reports/

@@ -1,9 +1,14 @@
-from flask import Flask, g, request
+"""
+╔═══════════════════════════════════════════════════╗
+║           SKYY – Application Factory               ║
+╚═══════════════════════════════════════════════════╝
+"""
+
+from flask import Flask, g
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_bcrypt import Bcrypt
 from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from flask_migrate import Migrate
 from dotenv import load_dotenv
 from app.security import (
@@ -39,9 +44,13 @@ def create_app():
     app.config.from_object(config)
 
     # Override with environment variables if present
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', app.config.get('SECRET_KEY'))
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', app.config.get('SQLALCHEMY_DATABASE_URI'))
-    
+    secret_key = os.getenv('SECRET_KEY', app.config.get('SECRET_KEY'))
+    app.config['SECRET_KEY'] = secret_key
+    db_uri = os.getenv(
+        'DATABASE_URL', app.config.get('SQLALCHEMY_DATABASE_URI')
+    )
+    app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
+
     # Apply session hardening
     for key, value in SESSION_CONFIG.items():
         app.config[key] = value
@@ -55,7 +64,7 @@ def create_app():
 
     login_manager.login_view = 'auth.login'
     login_manager.login_message_category = 'info'
-    login_manager.session_protection = 'strong'  # Extra session security
+    login_manager.session_protection = 'strong'
 
     # ─── Setup Logging ───
     setup_logging(app)
@@ -64,9 +73,7 @@ def create_app():
     @app.before_request
     def before_request():
         """Run security checks before every request."""
-        # Validate request size
         validate_request_size()
-        # Generate CSRF token for session
         g.csrf_token = generate_csrf_token()
 
     @app.after_request
@@ -111,7 +118,3 @@ def create_app():
         db.create_all()
 
     return app
-
-
-# Import secrets at module level for the fallback key
-import secrets

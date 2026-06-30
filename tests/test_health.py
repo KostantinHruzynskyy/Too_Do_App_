@@ -31,7 +31,7 @@ class TestHealthEndpoint:
         """Test that health check has all required fields."""
         response = client.get('/health')
         data = response.get_json()
-        
+
         assert 'status' in data
         assert 'checks' in data
         assert 'timestamp' in data['checks']
@@ -45,7 +45,7 @@ class TestHealthEndpoint:
         response = client.get('/health')
         data = response.get_json()
         version = data['checks']['version']
-        
+
         # Should be in format X.Y.Z
         parts = version.split('.')
         assert len(parts) == 3
@@ -54,11 +54,11 @@ class TestHealthEndpoint:
     def test_health_check_timestamp_format(self, client):
         """Test that timestamp is in ISO format."""
         from datetime import datetime
-        
+
         response = client.get('/health')
         data = response.get_json()
         timestamp = data['checks']['timestamp']
-        
+
         # Should be parseable as ISO format
         try:
             datetime.fromisoformat(timestamp)
@@ -80,7 +80,7 @@ class TestHealthEndpoint:
         """Test that user and todo counts are present."""
         response = client.get('/health')
         data = response.get_json()
-        
+
         # Should be integers (0 or more)
         assert isinstance(data['checks']['users'], int)
         assert isinstance(data['checks']['todos'], int)
@@ -94,7 +94,7 @@ def app():
     app = create_app()
     app.config['TESTING'] = True
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory/'
-    
+
     with app.app_context():
         db.create_all()
         yield app

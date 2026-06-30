@@ -18,19 +18,13 @@ from app.security import (
     validate_csrf_token,
     check_login_attempts,
     record_failed_login,
-    add_security_headers,
     SESSION_CONFIG,
     MIN_PASSWORD_LENGTH,
     MAX_PASSWORD_LENGTH,
     MIN_USERNAME_LENGTH,
     MAX_USERNAME_LENGTH,
-    MAX_TITLE_LENGTH,
-    MAX_DESCRIPTION_LENGTH,
     MAX_LOGIN_ATTEMPTS,
-    ALLOWED_DOMAINS,
     COMMON_PASSWORDS,
-    ALLOWED_HTML_TAGS,
-    ALLOWED_HTML_ATTRS,
 )
 
 
@@ -46,19 +40,22 @@ class TestPasswordValidation:
 
     def test_password_too_short(self):
         """Test that short passwords fail validation."""
-        with pytest.raises(PasswordValidationError, match=f'at least {MIN_PASSWORD_LENGTH}'):
+        with pytest.raises(
+            PasswordValidationError, match=f'at least {MIN_PASSWORD_LENGTH}'
+        ):
             validate_password_strength('Short1!A')
 
     def test_password_too_long(self):
         """Test that excessively long passwords fail validation."""
-        with pytest.raises(PasswordValidationError, match=f'not exceed {MAX_PASSWORD_LENGTH}'):
+        with pytest.raises(
+            PasswordValidationError,
+            match=f'not exceed {MAX_PASSWORD_LENGTH}',
+        ):
             validate_password_strength('A' * (MAX_PASSWORD_LENGTH + 1) + '!1a')
 
     def test_password_common(self):
         """Test that common passwords are rejected."""
         # Test with a password that's actually in the list and >= 12 chars
-        # Looking at COMMON_PASSWORDS for passwords >= 12 chars
-        from app.security import COMMON_PASSWORDS
         long_common = [p for p in COMMON_PASSWORDS if len(p) >= 12]
         assert len(long_common) > 0, "No common passwords >= 12 chars found"
         with pytest.raises(PasswordValidationError, match='too common'):
@@ -68,10 +65,10 @@ class TestPasswordValidation:
         """Test that passwords without character diversity fail."""
         with pytest.raises(PasswordValidationError, match='at least 3'):
             validate_password_strength('aaaaaaaaaaaa')
-        
+
         with pytest.raises(PasswordValidationError, match='at least 3'):
             validate_password_strength('AAAAAAAAAAAA')
-        
+
         with pytest.raises(PasswordValidationError, match='at least 3'):
             validate_password_strength('111111111111')
 
@@ -79,7 +76,7 @@ class TestPasswordValidation:
         """Test passwords with only 2 character categories fail."""
         with pytest.raises(PasswordValidationError, match='at least 3'):
             validate_password_strength('abcdefghijkl')  # Only lowercase
-        
+
         with pytest.raises(PasswordValidationError, match='at least 3'):
             validate_password_strength('ABCDEFGHIJKL')  # Only uppercase
 
@@ -128,8 +125,10 @@ class TestEmailValidation:
         valid, result = validate_email_address('test@example.com')
         assert valid is True
         assert result == 'test@example.com'
-        
-        valid, result = validate_email_address('user.name+tag@example.co.uk')
+
+        valid, result = validate_email_address(
+            'user.name+tag@example.co.uk'
+        )
         assert valid is True
 
     def test_invalid_emails(self):
@@ -146,7 +145,9 @@ class TestSanitization:
 
     def test_sanitize_plain_text_strips_html(self):
         """Test that plain text sanitization removes HTML."""
-        assert sanitize_plain_text('<script>alert("xss")</script>') == 'alert("xss")'
+        assert sanitize_plain_text(
+            '<script>alert("xss")</script>'
+        ) == 'alert("xss")'
         assert sanitize_plain_text('<b>Bold</b>') == 'Bold'
         assert sanitize_plain_text('<img src=x onerror=alert(1)>') == ''
 
@@ -169,7 +170,7 @@ class TestSanitization:
         """Test that dangerous HTML tags are removed."""
         result = sanitize_html('<script>alert(1)</script>')
         assert '<script>' not in result
-        
+
         result = sanitize_html('<img src=x onerror=alert(1)>')
         assert '<img' not in result or 'onerror' not in result
 
@@ -228,7 +229,6 @@ class TestCSRFProtection:
     def test_csrf_token_generation(self, app):
         """Test CSRF token generation."""
         with app.test_request_context():
-            from flask import g
             token = generate_csrf_token()
             assert token is not None
             assert len(token) == 64  # 32 bytes hex = 64 chars
@@ -236,7 +236,6 @@ class TestCSRFProtection:
     def test_csrf_token_validation(self, app):
         """Test CSRF token validation."""
         with app.test_request_context():
-            from flask import g
             token = generate_csrf_token()
             assert validate_csrf_token(token) is True
             assert validate_csrf_token('invalid') is False
@@ -281,7 +280,7 @@ class TestLoginAttemptTracking:
             # Record multiple failed attempts
             for _ in range(MAX_LOGIN_ATTEMPTS):
                 record_failed_login()
-            
+
             # Should now be blocked
             allowed, retry_after = check_login_attempts()
             assert allowed is False

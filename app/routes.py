@@ -6,7 +6,10 @@
 ╚═══════════════════════════════════════════════════╝
 """
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, g
+from flask import (
+    Blueprint, render_template, redirect, url_for,
+    flash, request, jsonify,
+)
 from flask_login import login_user, logout_user, login_required, current_user
 from app import db, bcrypt, limiter
 from app.models import User, Todo
@@ -26,11 +29,10 @@ from app.security import (
     RATE_LIMIT_LOGIN,
     RATE_LIMIT_REGISTER,
     RATE_LIMIT_API,
-    MIN_PASSWORD_LENGTH,
     MAX_TITLE_LENGTH,
     MAX_DESCRIPTION_LENGTH,
 )
-from datetime import datetime, timezone, date
+from datetime import datetime, date
 
 main = Blueprint('main', __name__)
 auth = Blueprint('auth', __name__)
@@ -81,7 +83,11 @@ def login():
         # Check brute-force lockout
         allowed, retry_after = check_login_attempts()
         if not allowed:
-            flash(f'Too many login attempts. Try again in {retry_after} seconds.', 'danger')
+            flash(
+                f'Too many login attempts. Try again in '
+                f'{retry_after} seconds.',
+                'danger',
+            )
             return render_template('login.html')
 
         email = sanitize_plain_text(request.form.get('email', ''))
@@ -157,7 +163,9 @@ def register():
 
         # Create user with hashed password
         hashed_pw = bcrypt.generate_password_hash(password).decode('utf-8')
-        user = User(username=username, email=email, password_hash=hashed_pw)
+        user = User(
+            username=username, email=email, password_hash=hashed_pw
+        )
         db.session.add(user)
         db.session.commit()
 
@@ -225,10 +233,18 @@ def dashboard():
 
     todos = query.all()
     stats = {
-        'total': Todo.query.filter_by(user_id=current_user.id).count(),
-        'completed': Todo.query.filter_by(user_id=current_user.id, completed=True).count(),
-        'active': Todo.query.filter_by(user_id=current_user.id, completed=False).count(),
-        'high_priority': Todo.query.filter_by(user_id=current_user.id, priority='high', completed=False).count(),
+        'total': Todo.query.filter_by(
+            user_id=current_user.id
+        ).count(),
+        'completed': Todo.query.filter_by(
+            user_id=current_user.id, completed=True
+        ).count(),
+        'active': Todo.query.filter_by(
+            user_id=current_user.id, completed=False
+        ).count(),
+        'high_priority': Todo.query.filter_by(
+            user_id=current_user.id, priority='high', completed=False
+        ).count(),
     }
 
     return render_template(
@@ -261,14 +277,19 @@ def add_todo():
     if not title:
         return jsonify({'error': 'Title is required.'}), 400
     if len(title) > MAX_TITLE_LENGTH:
-        return jsonify({'error': f'Title must not exceed {MAX_TITLE_LENGTH} characters.'}), 400
+        return jsonify({
+            'error': f'Title must not exceed {MAX_TITLE_LENGTH} characters.',
+        }), 400
 
     title = sanitize_plain_text(title)
 
     description = sanitized.get('description', '')
     if description:
         if len(description) > MAX_DESCRIPTION_LENGTH:
-            return jsonify({'error': f'Description must not exceed {MAX_DESCRIPTION_LENGTH} characters.'}), 400
+            return jsonify({
+                'error': f'Description must not exceed '
+                         f'{MAX_DESCRIPTION_LENGTH} characters.',
+            }), 400
         description = sanitize_html(description)
 
     priority = sanitized.get('priority', 'medium')
@@ -281,9 +302,13 @@ def add_todo():
         try:
             due_date = datetime.fromisoformat(sanitized['due_date'])
             if due_date.date() < date.today():
-                return jsonify({'error': 'Due date cannot be in the past.'}), 400
+                return jsonify({
+                    'error': 'Due date cannot be in the past.',
+                }), 400
         except (ValueError, TypeError):
-            return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD.'}), 400
+            return jsonify({
+                'error': 'Invalid date format. Use YYYY-MM-DD.',
+            }), 400
 
     todo = Todo(
         title=title,
@@ -302,7 +327,7 @@ def add_todo():
         'completed': todo.completed,
         'priority': todo.priority,
         'created_at': todo.created_at.isoformat(),
-        'due_date': todo.due_date.isoformat() if todo.due_date else None
+        'due_date': todo.due_date.isoformat() if todo.due_date else None,
     }), 201
 
 
@@ -312,12 +337,16 @@ def add_todo():
 @validate_content_type
 @require_csrf
 def update_todo(todo_id):
-    todo = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first_or_404()
+    todo = Todo.query.filter_by(
+        id=todo_id, user_id=current_user.id
+    ).first_or_404()
     data = request.get_json(silent=True)
     if not data:
         return jsonify({'error': 'Invalid JSON payload.'}), 400
 
-    allowed_fields = {'title', 'description', 'completed', 'priority', 'due_date'}
+    allowed_fields = {
+        'title', 'description', 'completed', 'priority', 'due_date'
+    }
     sanitized = sanitize_json_input(data, allowed_fields)
 
     if 'title' in sanitized:
@@ -325,27 +354,37 @@ def update_todo(todo_id):
         if not title:
             return jsonify({'error': 'Title cannot be empty.'}), 400
         if len(title) > MAX_TITLE_LENGTH:
-            return jsonify({'error': f'Title must not exceed {MAX_TITLE_LENGTH} characters.'}), 400
+            return jsonify({
+                'error': f'Title must not exceed '
+                         f'{MAX_TITLE_LENGTH} characters.',
+            }), 400
         todo.title = sanitize_plain_text(title)
 
     if 'description' in sanitized:
         desc = sanitized['description']
         if len(desc) > MAX_DESCRIPTION_LENGTH:
-            return jsonify({'error': f'Description must not exceed {MAX_DESCRIPTION_LENGTH} characters.'}), 400
+            return jsonify({
+                'error': f'Description must not exceed '
+                         f'{MAX_DESCRIPTION_LENGTH} characters.',
+            }), 400
         todo.description = sanitize_html(desc) if desc else ''
 
     if 'completed' in sanitized:
         if isinstance(sanitized['completed'], bool):
             todo.completed = sanitized['completed']
         else:
-            return jsonify({'error': 'Completed must be a boolean.'}), 400
+            return jsonify({
+                'error': 'Completed must be a boolean.',
+            }), 400
 
     if 'priority' in sanitized:
         valid_priorities = {'low', 'medium', 'high'}
         if sanitized['priority'] in valid_priorities:
             todo.priority = sanitized['priority']
         else:
-            return jsonify({'error': 'Invalid priority. Use low, medium, or high.'}), 400
+            return jsonify({
+                'error': 'Invalid priority. Use low, medium, or high.',
+            }), 400
 
     if 'due_date' in sanitized:
         if sanitized['due_date']:
@@ -353,7 +392,9 @@ def update_todo(todo_id):
                 due = datetime.fromisoformat(sanitized['due_date'])
                 todo.due_date = due
             except (ValueError, TypeError):
-                return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD.'}), 400
+                return jsonify({
+                    'error': 'Invalid date format. Use YYYY-MM-DD.',
+                }), 400
         else:
             todo.due_date = None
 
@@ -366,7 +407,9 @@ def update_todo(todo_id):
 @limiter.limit(RATE_LIMIT_API)
 @require_csrf
 def delete_todo(todo_id):
-    todo = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first_or_404()
+    todo = Todo.query.filter_by(
+        id=todo_id, user_id=current_user.id
+    ).first_or_404()
     db.session.delete(todo)
     db.session.commit()
     return jsonify({'message': 'Todo deleted successfully.'}), 200
@@ -377,7 +420,9 @@ def delete_todo(todo_id):
 @limiter.limit(RATE_LIMIT_API)
 @require_csrf
 def toggle_todo(todo_id):
-    todo = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first_or_404()
+    todo = Todo.query.filter_by(
+        id=todo_id, user_id=current_user.id
+    ).first_or_404()
     todo.completed = not todo.completed
     db.session.commit()
     return jsonify({'completed': todo.completed}), 200

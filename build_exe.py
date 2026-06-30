@@ -7,23 +7,22 @@
 
 Usage:
     python build_exe.py
-    
+
 Output:
     dist/TooDooApp.exe
 """
 
-import os
 import sys
 import subprocess
 
 
 def build_executable():
     """Build the desktop application as a Windows executable."""
-    
+
     print("=" * 60)
     print("  SKYY – Building Desktop Executable")
     print("=" * 60)
-    
+
     # PyInstaller command
     cmd = [
         sys.executable, "-m", "PyInstaller",
@@ -45,17 +44,17 @@ def build_executable():
         # "--icon=app/static/images/icon.ico",
         "desktop_app.py"
     ]
-    
+
     print("\nRunning PyInstaller...")
     print(f"Command: {' '.join(cmd)}\n")
-    
+
     result = subprocess.run(cmd, capture_output=False)
-    
+
     if result.returncode == 0:
         print("\n" + "=" * 60)
         print("  BUILD SUCCESSFUL!")
         print("=" * 60)
-        print(f"\nExecutable location: dist/TooDooApp.exe")
+        print("\nExecutable location: dist/TooDooApp.exe")
         print("\nTo run the application:")
         print("  1. Start the web server: python run.py")
         print("  2. Run the desktop app: dist/TooDooApp.exe")
@@ -67,13 +66,13 @@ def build_executable():
         print("=" * 60)
         print("Check the output above for errors.")
         return False
-    
+
     return True
 
 
 def create_spec_file():
     """Create a PyInstaller spec file for advanced configuration."""
-    
+
     spec_content = '''
 # -*- mode: python ; coding: utf-8 -*-
 
@@ -133,10 +132,10 @@ exe = EXE(
     # icon='app/static/images/icon.ico',  # Uncomment if you have an icon
 )
 '''
-    
+
     with open("TooDooApp.spec", "w") as f:
         f.write(spec_content)
-    
+
     print("Created TooDooApp.spec file")
 
 

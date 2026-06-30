@@ -6,7 +6,6 @@
 
 import pytest
 from app import create_app, db
-from app.models import User
 from app.security import (
     validate_password_strength,
     PasswordValidationError,
@@ -24,7 +23,7 @@ def app():
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
     app.config['WTF_CSRF_ENABLED'] = False
     app.config['LOGIN_DISABLED'] = True
-    
+
     with app.app_context():
         db.create_all()
         yield app
@@ -207,17 +206,19 @@ def test_email_validation():
     valid, result = validate_email_address('test@example.com')
     assert valid is True
     assert result == 'test@example.com'
-    
+
     valid, _ = validate_email_address('not-an-email')
     assert valid is False
-    
+
     valid, _ = validate_email_address('')
     assert valid is False
 
 
 def test_sanitize_plain_text():
     """Test plain text sanitization strips HTML."""
-    assert sanitize_plain_text('<script>alert("xss")</script>') == 'alert("xss")'
+    assert sanitize_plain_text(
+        '<script>alert("xss")</script>'
+    ) == 'alert("xss")'
     assert sanitize_plain_text('Hello World') == 'Hello World'
     assert sanitize_plain_text('') == ''
 
@@ -241,10 +242,10 @@ def test_api_add_todo(client):
         'password': 'StrongP@ss123',
         'confirm_password': 'StrongP@ss123',
     })
-    
+
     # Get CSRF token from dashboard
     client.get('/dashboard')
-    
+
     response = client.post('/api/todos', json={
         'title': 'Test Task',
         'description': 'A test task',
@@ -262,10 +263,10 @@ def test_api_add_todo_no_title(client):
         'password': 'StrongP@ss123',
         'confirm_password': 'StrongP@ss123',
     })
-    
+
     # Get CSRF token from dashboard
     client.get('/dashboard')
-    
+
     response = client.post('/api/todos', json={})
     # May fail due to CSRF or validation
     assert response.status_code in [400, 403]
@@ -279,15 +280,15 @@ def test_api_toggle_todo(client):
         'password': 'StrongP@ss123',
         'confirm_password': 'StrongP@ss123',
     })
-    
+
     # Get CSRF token from dashboard
     client.get('/dashboard')
-    
+
     # Create todo
     create_resp = client.post('/api/todos', json={'title': 'Test'})
     if create_resp.status_code == 201:
         todo_id = create_resp.get_json()['id']
-        
+
         # Toggle
         toggle_resp = client.post(f'/api/todos/{todo_id}/toggle')
         assert toggle_resp.status_code in [200, 403]
@@ -301,14 +302,14 @@ def test_api_delete_todo(client):
         'password': 'StrongP@ss123',
         'confirm_password': 'StrongP@ss123',
     })
-    
+
     # Get CSRF token from dashboard
     client.get('/dashboard')
-    
+
     create_resp = client.post('/api/todos', json={'title': 'Test'})
     if create_resp.status_code == 201:
         todo_id = create_resp.get_json()['id']
-        
+
         delete_resp = client.delete(f'/api/todos/{todo_id}')
         assert delete_resp.status_code in [200, 403]
 
@@ -321,14 +322,14 @@ def test_api_update_todo(client):
         'password': 'StrongP@ss123',
         'confirm_password': 'StrongP@ss123',
     })
-    
+
     # Get CSRF token from dashboard
     client.get('/dashboard')
-    
+
     create_resp = client.post('/api/todos', json={'title': 'Original'})
     if create_resp.status_code == 201:
         todo_id = create_resp.get_json()['id']
-        
+
         update_resp = client.put(f'/api/todos/{todo_id}', json={
             'title': 'Updated',
             'priority': 'low',

@@ -11,7 +11,7 @@ import bleach
 import secrets
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from flask import request, jsonify, current_app, abort, g, session
+from flask import request, jsonify, abort, session
 from email_validator import validate_email, EmailNotValidError
 
 # ═══════════════════════════════════════════════════════════════
@@ -35,9 +35,22 @@ RATE_LIMIT_GLOBAL = "200 per minute"
 
 CSP_POLICY = {
     'default-src': ["'self'"],
-    'script-src': ["'self'", "https://cdnjs.cloudflare.com", "https://kit.fontawesome.com"],
-    'style-src': ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
-    'font-src': ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
+    'script-src': [
+        "'self'",
+        "https://cdnjs.cloudflare.com",
+        "https://kit.fontawesome.com",
+    ],
+    'style-src': [
+        "'self'",
+        "'unsafe-inline'",
+        "https://fonts.googleapis.com",
+        "https://cdnjs.cloudflare.com",
+    ],
+    'font-src': [
+        "'self'",
+        "https://fonts.gstatic.com",
+        "https://cdnjs.cloudflare.com",
+    ],
     'img-src': ["'self'", "data:", "https:"],
     'connect-src': ["'self'"],
     'form-action': ["'self'"],
@@ -75,7 +88,8 @@ def validate_password_strength(password: str) -> None:
     """Validate password against enterprise security policy."""
     if len(password) < MIN_PASSWORD_LENGTH:
         raise PasswordValidationError(
-            f'Password must be at least {MIN_PASSWORD_LENGTH} characters long.'
+            f'Password must be at least {MIN_PASSWORD_LENGTH} characters '
+            f'long.'
         )
     if len(password) > MAX_PASSWORD_LENGTH:
         raise PasswordValidationError(
@@ -87,14 +101,16 @@ def validate_password_strength(password: str) -> None:
         'uppercase': bool(re.search(r'[A-Z]', password)),
         'lowercase': bool(re.search(r'[a-z]', password)),
         'digit': bool(re.search(r'\d', password)),
-        'special': bool(re.search(r'[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\;`~]', password)),
+        'special': bool(
+            re.search(r'[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\;`~]', password)
+        ),
     }
     passed = sum(checks.values())
     if passed < 3:
         missing = [k for k, v in checks.items() if not v]
         raise PasswordValidationError(
-            f'Password must contain at least 3 of: uppercase, lowercase, digit, special. '
-            f'Missing: {", ".join(missing)}.'
+            f'Password must contain at least 3 of: uppercase, lowercase, '
+            f'digit, special. Missing: {", ".join(missing)}.'
         )
 
 
@@ -105,7 +121,10 @@ def validate_password_strength(password: str) -> None:
 def sanitize_html(text: str) -> str:
     if not text:
         return text
-    cleaned = bleach.clean(text, tags=ALLOWED_HTML_TAGS, attributes=ALLOWED_HTML_ATTRS, strip=True)
+    cleaned = bleach.clean(
+        text, tags=ALLOWED_HTML_TAGS, attributes=ALLOWED_HTML_ATTRS,
+        strip=True
+    )
     return html.escape(cleaned, quote=True)
 
 
@@ -142,13 +161,24 @@ def validate_username(username: str) -> tuple[bool, str]:
         return False, 'Username is required.'
     username = username.strip()
     if len(username) < MIN_USERNAME_LENGTH:
-        return False, f'Username must be at least {MIN_USERNAME_LENGTH} characters.'
+        return False, (
+            f'Username must be at least {MIN_USERNAME_LENGTH} characters.'
+        )
     if len(username) > MAX_USERNAME_LENGTH:
-        return False, f'Username must not exceed {MAX_USERNAME_LENGTH} characters.'
+        return False, (
+            f'Username must not exceed {MAX_USERNAME_LENGTH} characters.'
+        )
     if not re.match(r'^[a-zA-Z0-9_-]+$', username):
-        return False, 'Username can only contain letters, numbers, hyphens, and underscores.'
+        return (
+            False,
+            'Username can only contain letters, numbers, hyphens, '
+            'and underscores.',
+        )
     if re.search(r'[-_]{2,}', username):
-        return False, 'Username cannot contain consecutive hyphens or underscores.'
+        return (
+            False,
+            'Username cannot contain consecutive hyphens or underscores.',
+        )
     return True, ''
 
 
@@ -173,7 +203,9 @@ def is_safe_redirect_url(target: str) -> bool:
         from urllib.parse import urlparse
         parsed = urlparse(target)
         hostname = parsed.hostname or ''
-        if hostname not in ALLOWED_DOMAINS and not hostname.endswith('.allowed-domain.com'):
+        if hostname not in ALLOWED_DOMAINS and not hostname.endswith(
+            '.allowed-domain.com'
+        ):
             return False
     if '..' in target.split('/') and target != '/':
         return False
@@ -232,7 +264,10 @@ def require_csrf(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if request.method in ('POST', 'PUT', 'DELETE'):
-            token = request.headers.get('X-CSRF-Token') or request.form.get('csrf_token')
+            token = (
+                request.headers.get('X-CSRF-Token')
+                or request.form.get('csrf_token')
+            )
             if not validate_csrf_token(token):
                 return jsonify({'error': 'CSRF validation failed.'}), 403
         return f(*args, **kwargs)
@@ -244,7 +279,9 @@ def validate_content_type(f):
     def decorated_function(*args, **kwargs):
         if request.method in ('POST', 'PUT'):
             if not request.is_json:
-                return jsonify({'error': 'Content-Type must be application/json.'}), 415
+                return jsonify({
+                    'error': 'Content-Type must be application/json.',
+                }), 415
         return f(*args, **kwargs)
     return decorated_function
 
@@ -257,8 +294,12 @@ def add_security_headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-XSS-Protection'] = '1; mode=block'
-    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Strict-Transport-Security'] = (
+        'max-age=31536000; includeSubDomains'
+    )
+    response.headers['Referrer-Policy'] = (
+        'strict-origin-when-cross-origin'
+    )
     response.headers['Permissions-Policy'] = (
         'camera=(), microphone=(), geolocation=(), '
         'payment=(), usb=(), fullscreen=(self)'
@@ -267,7 +308,9 @@ def add_security_headers(response):
     for directive, sources in CSP_POLICY.items():
         csp_directives.append(f"{directive} {' '.join(sources)}")
     response.headers['Content-Security-Policy'] = '; '.join(csp_directives)
-    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Cache-Control'] = (
+        'no-store, no-cache, must-revalidate, max-age=0'
+    )
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'
     return response
@@ -307,9 +350,11 @@ def check_login_attempts() -> tuple[bool, int]:
             if t > now - timedelta(minutes=LOGIN_LOCKOUT_MINUTES)
         ]
         if len(_login_attempts[ip]) >= MAX_LOGIN_ATTEMPTS:
-            retry_after = int(
-                (_login_attempts[ip][0] + timedelta(minutes=LOGIN_LOCKOUT_MINUTES) - now).total_seconds()
+            first_attempt = _login_attempts[ip][0]
+            lockout_end = first_attempt + timedelta(
+                minutes=LOGIN_LOCKOUT_MINUTES
             )
+            retry_after = int((lockout_end - now).total_seconds())
             return False, max(retry_after, 0)
     return True, 0
 
